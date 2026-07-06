@@ -49,8 +49,6 @@ jobs:
         run: |
           pwd
           ls -la
-          echo "----- week2 -----"
-          ls -la week2
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
