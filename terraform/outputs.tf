@@ -42,5 +42,5 @@ output "security_group_id" {
 
 output "vpc_id" {
   description = "VPC ID where resources are deployed"
-  value       = try(data.aws_vpc.default.id, "")
+  value       = var.vpc_id
 }

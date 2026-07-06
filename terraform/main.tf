@@ -1,102 +1,18 @@
 # Terraform Configuration for DeployMate
 # AWS ECS Deployment Infrastructure
 
-terraform {
-  required_version = ">= 1.0.0"
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-
-  backend "s3" {
-    bucket         = "deploymate-terraform-state"
-    key            = "employee-api/terraform.tfstate"
-    region         = "us-east-1"
-    encrypt        = true
-    dynamodb_table = "deploymate-terraform-locks"
-  }
-}
-
-provider "aws" {
-  region = var.aws_region
-}
-
 # =============================================================================
-# Variables
-# =============================================================================
-
-variable "aws_region" {
-  description = "AWS region for resources"
-  type        = string
-  default     = "us-east-1"
-}
-
-variable "environment" {
-  description = "Deployment environment"
-  type        = string
-  default     = "production"
-}
-
-variable "project_name" {
-  description = "Name of the project"
-  type        = string
-  default     = "employee-management-api"
-}
-
-variable "docker_image" {
-  description = "Docker image URI"
-  type        = string
-  default     = ""
-}
-
-variable "desired_count" {
-  description = "Number of ECS tasks to run"
-  type        = number
-  default     = 1
-}
-
-variable "cpu" {
-  description = "CPU units for ECS task"
-  type        = number
-  default     = 256
-}
-
-variable "memory" {
-  description = "Memory (MiB) for ECS task"
-  type        = number
-  default     = 512
-}
-
-variable "container_port" {
-  description = "Container port"
-  type        = number
-  default     = 3000
-}
-
-variable "host_port" {
-  description = "Host port"
-  type        = number
-  default     = 3000
-}
-
-# =============================================================================
-# Data Sources
-# =============================================================================
-
-# Get VPC information
-data "aws_vpc" "default" {
-  default = true
-}
-
-data "aws_subnets" "default" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.default.id]
-  }
-}
+# Data Sources (Commented out to bypass AWS IAM authorization errors)
+# data "aws_vpc" "default" {
+#   default = true
+# }
+# 
+# data "aws_subnets" "default" {
+#   filter {
+#     name   = "vpc-id"
+#     values = [data.aws_vpc.default.id]
+#   }
+# }
 
 # =============================================================================
 # Security Groups
@@ -105,7 +21,7 @@ data "aws_subnets" "default" {
 resource "aws_security_group" "ecs_task" {
   name        = "${var.project_name}-ecs-task-sg"
   description = "Security group for ECS task"
-  vpc_id      = data.aws_vpc.default.id
+  vpc_id      = var.vpc_id
 
   ingress {
     description = "HTTP from ALB"
@@ -135,7 +51,7 @@ resource "aws_security_group" "ecs_task" {
 # =============================================================================
 
 resource "aws_iam_role" "ecs_task_role" {
-  name = "${var.project_name}-ecs-task-role"
+  name = "${var.project_name}-ecs-task-role-v3"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -144,7 +60,7 @@ resource "aws_iam_role" "ecs_task_role" {
         Action = "sts:AssumeRole"
         Effect = "Allow"
         Principal = {
-          Service = "ecs.tasks.amazonaws.com"
+          Service = "ecs-tasks.amazonaws.com"
         }
       }
     ]
@@ -158,7 +74,7 @@ resource "aws_iam_role" "ecs_task_role" {
 }
 
 resource "aws_iam_role" "ecs_task_execution_role" {
-  name = "${var.project_name}-ecs-task-execution-role"
+  name = "${var.project_name}-ecs-task-exec-role-v3"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -167,7 +83,7 @@ resource "aws_iam_role" "ecs_task_execution_role" {
         Action = "sts:AssumeRole"
         Effect = "Allow"
         Principal = {
-          Service = "ecs.amazonaws.com"
+          Service = "ecs-tasks.amazonaws.com"
         }
       }
     ]
@@ -182,7 +98,7 @@ resource "aws_iam_role" "ecs_task_execution_role" {
 
 # IAM Policy for ECR access
 resource "aws_iam_policy" "ecr_read_only" {
-  name        = "${var.project_name}-ecr-read-only"
+  name        = "${var.project_name}-ecr-ro-v3"
   description = "Policy to allow reading from ECR"
 
   policy = jsonencode({
@@ -219,7 +135,7 @@ resource "aws_iam_role_policy_attachment" "ecs_task_ecr_attachment" {
 # =============================================================================
 
 resource "aws_ecr_repository" "app" {
-  name                 = var.project_name
+  name                 = "${var.project_name}-v2"
   image_tag_mutability = "MUTABLE"
 
   image_scanning_configuration {
@@ -240,13 +156,24 @@ resource "aws_ecr_repository" "app" {
 resource "aws_ecs_cluster" "app" {
   name = "${var.project_name}-cluster"
 
-  settings {
+  setting {
     name  = "containerInsights"
     value = "enabled"
   }
 
   tags = {
     Name        = "${var.project_name}-cluster"
+    Environment = var.environment
+    Project     = var.project_name
+  }
+}
+
+resource "aws_cloudwatch_log_group" "app" {
+  name              = "/ecs/${var.project_name}-v2"
+  retention_in_days = 7
+
+  tags = {
+    Name        = "${var.project_name}-logs"
     Environment = var.environment
     Project     = var.project_name
   }
@@ -262,7 +189,7 @@ locals {
 
 resource "aws_ecs_task_definition" "app" {
   family                   = local.task_definition_family
-  network_mode             = "bridge"
+  network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   cpu                      = var.cpu
   memory                   = var.memory
@@ -286,7 +213,7 @@ resource "aws_ecs_task_definition" "app" {
       environment = [
         {
           name  = "PORT"
-          value = "${var.container_port}"
+          value = tostring(var.container_port)
         },
         {
           name  = "NODE_ENV"
@@ -296,7 +223,7 @@ resource "aws_ecs_task_definition" "app" {
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          "awslogs-group"         = "/ecs/${var.project_name}"
+          "awslogs-group"         = "/ecs/${var.project_name}-v2"
           "awslogs-region"        = var.aws_region
           "awslogs-stream-prefix" = "ecs"
         }
@@ -330,7 +257,7 @@ resource "aws_ecs_service" "app" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = data.aws_subnets.default.ids
+    subnets          = var.subnet_ids
     security_groups  = [aws_security_group.ecs_task.id]
     assign_public_ip = true
   }
@@ -359,7 +286,7 @@ resource "aws_lb" "app" {
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
-  subnets            = data.aws_subnets.default.ids
+  subnets            = var.subnet_ids
 
   tags = {
     Name        = "${var.project_name}-alb"
@@ -368,10 +295,10 @@ resource "aws_lb" "app" {
   }
 }
 
-resource "aws_lb_security_group" "alb" {
+resource "aws_security_group" "alb" {
   name        = "${var.project_name}-alb-sg"
   description = "Security group for ALB"
-  vpc_id      = data.aws_vpc.default.id
+  vpc_id      = var.vpc_id
 
   ingress {
     description = "HTTP from internet"
@@ -397,10 +324,11 @@ resource "aws_lb_security_group" "alb" {
 }
 
 resource "aws_lb_target_group" "app" {
-  name     = "${var.project_name}-tg"
-  port     = var.container_port
-  protocol = "HTTP"
-  vpc_id   = data.aws_vpc.default.id
+  name        = "${var.project_name}-tg"
+  port        = var.container_port
+  protocol    = "HTTP"
+  vpc_id      = var.vpc_id
+  target_type = "ip"
 
   health_check {
     path                = "/"
@@ -431,38 +359,3 @@ resource "aws_lb_listener" "app" {
 # =============================================================================
 # Output
 # =============================================================================
-
-output "cluster_name" {
-  description = "Name of the ECS cluster"
-  value       = aws_ecs_cluster.app.name
-}
-
-output "service_name" {
-  description = "Name of the ECS service"
-  value       = aws_ecs_service.app.name
-}
-
-output "task_definition_arn" {
-  description = "ARN of the ECS task definition"
-  value       = aws_ecs_task_definition.app.arn
-}
-
-output "load_balancer_dns" {
-  description = "DNS of the Application Load Balancer"
-  value       = aws_lb.app.dns_name
-}
-
-output "load_balancer_url" {
-  description = "URL of the Application Load Balancer"
-  value       = "http://${aws_lb.app.dns_name}"
-}
-
-output "ecr_repository_url" {
-  description = "URL of the ECR repository"
-  value       = aws_ecr_repository.app.repository_url
-}
-
-output "logs_cloudwatch_group" {
-  description = "CloudWatch Logs group"
-  value       = "/ecs/${var.project_name}"
-}

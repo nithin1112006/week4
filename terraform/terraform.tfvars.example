@@ -13,3 +13,7 @@ host_port       = 3000
 enable_https    = false
 domain_name     = ""
 certificate_arn = ""
+
+# VPC and Subnet Configuration (Required since IAM user lacks DescribeVpcAttribute/DescribeVpcs permissions)
+vpc_id          = "vpc-xxxxxxxxxxxxxxxx"
+subnet_ids      = ["subnet-xxxxxxxxxxxxxxxx", "subnet-xxxxxxxxxxxxxxxx"]

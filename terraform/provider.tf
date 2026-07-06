@@ -10,14 +10,14 @@ terraform {
     }
   }
 
-  # Backend configuration - update with your S3 bucket details
-  backend "s3" {
-    bucket         = "deploymate-terraform-state"
-    key            = "employee-api/terraform.tfstate"
-    region         = "us-east-1"
-    encrypt        = true
-    dynamodb_table = "deploymate-terraform-locks"
-  }
+  # Backend configuration - commented out to use local state backend
+  # backend "s3" {
+  #   bucket         = "deploymate-terraform-state"
+  #   key            = "employee-api/terraform.tfstate"
+  #   region         = "us-east-1"
+  #   encrypt        = true
+  #   dynamodb_table = "deploymate-terraform-locks"
+  # }
 }
 
 provider "aws" {

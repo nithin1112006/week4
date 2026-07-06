@@ -71,3 +71,15 @@ variable "certificate_arn" {
   type        = string
   default     = ""
 }
+
+variable "vpc_id" {
+  description = "The ID of the VPC where resources will be deployed"
+  type        = string
+  default     = ""
+}
+
+variable "subnet_ids" {
+  description = "The list of subnet IDs for the resources"
+  type        = list(string)
+  default     = []
+}
