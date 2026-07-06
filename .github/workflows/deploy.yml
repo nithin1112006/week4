@@ -6,7 +6,7 @@ on:
       - master
       - main
       - develop
-      - 'releases/**'
+      - "releases/**"
 
   pull_request:
     branches:
@@ -17,9 +17,9 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Deployment environment'
+        description: Deployment environment
         required: true
-        default: 'staging'
+        default: staging
         type: choice
         options:
           - staging
@@ -31,52 +31,50 @@ env:
   ECS_CLUSTER: employee-api-cluster
   ECS_TASK_DEFINITION: task-definition.json
   CONTAINER_NAME: employee-api-container
-  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-  DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
 jobs:
   build-and-test:
-  name: Build and Test
-  runs-on: ubuntu-latest
+    name: Build and Test
+    runs-on: ubuntu-latest
 
-  defaults:
-    run:
-      working-directory: ./week2
+    defaults:
+      run:
+        working-directory: ./week2
 
-  steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Show Repository Structure
-      run: |
-        pwd
-        ls -la
-        echo "----- week2 -----"
-        ls -la week2
+      - name: Show Repository Structure
+        run: |
+          pwd
+          ls -la
+          echo "----- week2 -----"
+          ls -la week2
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: 18
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
 
-    - name: Install Dependencies
-      run: npm install --legacy-peer-deps
+      - name: Install Dependencies
+        run: npm install --legacy-peer-deps
 
-    - name: Run Linter
-      run: npm run lint || echo "No lint configured"
+      - name: Run Linter
+        run: npm run lint || echo "No lint configured"
 
-    - name: Run Tests
-      run: npm test || echo "No tests configured"
+      - name: Run Tests
+        run: npm test || echo "No tests configured"
 
-    - name: Build Application
-      run: npm run build || echo "No build script configured"
+      - name: Build Application
+        run: npm run build || echo "No build script configured"
 
   build-and-push-docker:
     name: Build and Push Docker Image
     needs: build-and-test
     runs-on: ubuntu-latest
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -90,26 +88,24 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Log in to AWS ECR
-        id: ecr-login
-        uses: aws-actions/amazon-ecr-login@v2
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          registry: ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Extract metadata for Docker
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: |
             ${{ secrets.DOCKERHUB_USERNAME }}/employee-management-api
-            ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}
-          tags: |
-            type=sha,prefix=
-            type=raw,value=latest
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}
 
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
@@ -117,20 +113,15 @@ jobs:
           context: ./week2
           push: true
           tags: |
-           ${{ secrets.DOCKERHUB_USERNAME }}/employee-management-api:latest
-
-      - name: Push Docker image to AWS ECR
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
-        run: |
-          docker tag ${{ secrets.DOCKERHUB_USERNAME }}/employee-management-api:latest ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest
-          docker push ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/employee-management-api:latest
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
 
   terraform-init:
     name: Terraform Init
     needs: build-and-push-docker
     runs-on: ubuntu-latest
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    
+
     environment:
       name: ${{ github.event.inputs.environment || 'staging' }}
 
@@ -141,7 +132,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: '1.9.0'
+          terraform_version: 1.9.0
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -159,8 +150,8 @@ jobs:
         run: terraform plan -input=false -out=tfplan
 
       - name: Terraform Apply
-        working-directory: ./terraform
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        working-directory: ./terraform
         run: terraform apply -input=false -auto-approve tfplan
 
   deploy-to-ecs:
@@ -168,7 +159,7 @@ jobs:
     needs: terraform-init
     runs-on: ubuntu-latest
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    
+
     environment:
       name: ${{ github.event.inputs.environment || 'staging' }}
 
@@ -183,11 +174,14 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Download task definition
+      - name: Download Task Definition
         run: |
-          aws ecs describe-task-definition --task-definition employee-api-task --query taskDefinition > ${{ env.ECS_TASK_DEFINITION }}
+          aws ecs describe-task-definition \
+            --task-definition employee-api-task \
+            --query taskDefinition \
+            > ${{ env.ECS_TASK_DEFINITION }}
 
-      - name: Fill in the new image ID in the Amazon ECS task definition
+      - name: Render ECS Task Definition
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
@@ -195,7 +189,7 @@ jobs:
           container-name: ${{ env.CONTAINER_NAME }}
           image: ${{ secrets.DOCKERHUB_USERNAME }}/employee-management-api:latest
 
-      - name: Deploy Amazon ECS task definition
+      - name: Deploy ECS Task Definition
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
           task-definition: ${{ steps.task-def.outputs.task-definition }}
@@ -205,23 +199,25 @@ jobs:
 
   notification:
     name: Send Notification
-    needs: [deploy-to-ecs, terraform-init]
+    needs:
+      - deploy-to-ecs
+      - terraform-init
+
     runs-on: ubuntu-latest
-    if: always() && (needs.deploy-to-ecs.result == 'success' || needs.terraform-init.result == 'success')
-    
+
+    if: always()
+
     steps:
-      - name: Deployment Success Notification
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      - name: Success
+        if: needs.deploy-to-ecs.result == 'success'
         run: |
           echo "Deployment completed successfully!"
           echo "Environment: ${{ github.event.inputs.environment || 'staging' }}"
           echo "Commit: ${{ github.sha }}"
           echo "Actor: ${{ github.actor }}"
 
-      - name: Deployment Failure Notification
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && (needs.deploy-to-ecs.result == 'failure' || needs.terraform-init.result == 'failure')
+      - name: Failure
+        if: needs.deploy-to-ecs.result == 'failure' || needs.terraform-init.result == 'failure'
         run: |
           echo "Deployment failed!"
-          echo "Environment: ${{ github.event.inputs.environment || 'staging' }}"
-          echo "Commit: ${{ github.sha }}"
           exit 1
