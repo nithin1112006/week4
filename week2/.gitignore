@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+
+# Database
+*.sqlite
+*.sqlite-journal
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker
+*.env.docker
+docker-compose.override.yml
+
+# Terraform (if in same repo)
+terraform/*.tfstate
+terraform/*.tfstate.*
+
+# Logs directory
+logs/

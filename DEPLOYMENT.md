@@ -154,6 +154,25 @@ curl http://<load-balancer-dns>.us-east-1.elb.amazonaws.com/
 # {"message":"Employee Management API","docs":"/api-docs","graphql":"/graphql"}
 ```
 
+Apply complete! Resources: 8 added, 0 changed, 0 destroyed.
+
+Outputs:
+
+cluster_name = "employee-management-api-cluster"
+ecr_repository_url = "287243894965.dkr.ecr.us-east-1.amazonaws.com/employee-management-api-v2"
+load_balancer_dns = "employee-management-api-alb-897244966.us-east-1.elb.amazonaws.com"
+load_balancer_url = "employee-management-api-alb-897244966.us-east-1.elb.amazonaws.com"
+logs_cloudwatch_group = "/ecs/employee-management-api-v2"
+security_group_id = "sg-0f02deb93a564ff1a"
+service_name = "employee-management-api-service"
+task_definition_arn = "arn:aws:ecs:us-east-1:287243894965:task-definition/employee-management-api-task:1"
+vpc_id = "vpc-055d8bc92e302c5e4"
+
+kvnni@NITHIN MINGW64 /d/INTERN/Presidio/week4/terraform (master)
+$ terraform output load_balancer_url
+"employee-management-api-alb-897244966.us-east-1.elb.amazonaws.com"
+
+
 ## Part 4: Infrastructure as Code (Terraform)
 
 ### 4.1 Resources Provisioned
