@@ -36,37 +36,40 @@ env:
 
 jobs:
   build-and-test:
-    name: Build and Test
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+  name: Build and Test
+  runs-on: ubuntu-latest
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
+  defaults:
+    run:
+      working-directory: ./week2
 
-      - name: Install dependencies
-        working-directory: ./week2
-        run: npm ci --legacy-peer-deps
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Run linter
-        working-directory: ./week2
-        run: npm run lint || echo "No linting configured"
+    - name: Show Repository Structure
+      run: |
+        pwd
+        ls -la
+        echo "----- week2 -----"
+        ls -la week2
 
-      - name: Run tests
-        working-directory: ./week2
-        run: |
-          echo "No tests configured - skipping"
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18
 
-      - name: Build application
-        working-directory: ./week2
-        run: |
-          echo "Building application..."
-          npm run build || echo "No build step configured"
+    - name: Install Dependencies
+      run: npm install --legacy-peer-deps
+
+    - name: Run Linter
+      run: npm run lint || echo "No lint configured"
+
+    - name: Run Tests
+      run: npm test || echo "No tests configured"
+
+    - name: Build Application
+      run: npm run build || echo "No build script configured"
 
   build-and-push-docker:
     name: Build and Push Docker Image
@@ -108,19 +111,13 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
 
-      - name: Build Docker image
+      - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
           context: ./week2
-          push: false
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Push Docker image to Docker Hub
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
-        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/employee-management-api:latest
+          push: true
+          tags: |
+           ${{ secrets.DOCKERHUB_USERNAME }}/employee-management-api:latest
 
       - name: Push Docker image to AWS ECR
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
