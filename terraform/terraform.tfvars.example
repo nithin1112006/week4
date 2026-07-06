@@ -1,0 +1,15 @@
+# Terraform Variables Example
+# Copy this file to terraform.tfvars and fill in your values
+
+aws_region      = "us-east-1"
+environment     = "production"
+project_name    = "employee-management-api"
+docker_image    = ""
+desired_count   = 2
+cpu             = 512
+memory          = 1024
+container_port  = 3000
+host_port       = 3000
+enable_https    = false
+domain_name     = ""
+certificate_arn = ""

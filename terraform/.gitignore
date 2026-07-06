@@ -1,0 +1,33 @@
+# Terraform files
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+*.log
+
+# Generated files
+terraform.tfvars
+terraform.tfvars.json
+*.auto.tfvars
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Sensitive data
+.env
+*.key
+*.pem
+*.crt
+
+# AWS credentials
+.aws/
+credentials
