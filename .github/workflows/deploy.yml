@@ -28,9 +28,9 @@ on:
 env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: employee-management-api
-  ECS_CLUSTER: employee-api-cluster
+  ECS_CLUSTER: employee-management-api-cluster
   ECS_TASK_DEFINITION: task-definition.json
-  CONTAINER_NAME: employee-api-container
+  CONTAINER_NAME: employee-management-api-container
 
 jobs:
   build-and-test:
@@ -169,7 +169,7 @@ jobs:
       - name: Download Task Definition
         run: |
           aws ecs describe-task-definition \
-            --task-definition employee-api-task \
+            --task-definition employee-management-api-task \
             --query taskDefinition \
             > ${{ env.ECS_TASK_DEFINITION }}
 
@@ -185,7 +185,7 @@ jobs:
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
           task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: employee-api-service
+          service: employee-management-api-service
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
 
