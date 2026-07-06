@@ -3,13 +3,17 @@ name: DeployMate - CI/CD Pipeline
 on:
   push:
     branches:
+      - master
       - main
       - develop
       - 'releases/**'
+
   pull_request:
     branches:
+      - master
       - main
       - develop
+
   workflow_dispatch:
     inputs:
       environment:
