@@ -1,0 +1,17 @@
+{
+  "name": "employee-management-api",
+  "version": "1.0.0",
+  "description": "Employee Management API - Week 4 Project",
+  "main": "index.js",
+  "scripts": {
+    "lint": "echo 'No lint configured'",
+    "test": "echo 'No tests configured'",
+    "build": "echo 'No build script configured'",
+    "start": "node index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {},
+  "devDependencies": {}
+}
